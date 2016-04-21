@@ -13,33 +13,32 @@ def parse_options():
     spyhead.py --sep ";" my_input.txt
     cat my_input.txt | spyhead.py
     cat my_input.txt | spyhead.py --sep ";"
+    spyhead.py --sep tab my_input.txt
+    
+    The --sep options understands two special keywords "tab" and "space"
+    for tab or space delimited files.
     '''
     
     parser = OptionParser(usage=userinfo)
-    option_names = ['sep']
-    for o in option_names:
-        parser.add_option('--' + o,
-            type='string',
-            action='store',
-            dest=o.upper(),
-            default=None)
+
+    parser.add_option('--sep',
+        type='string',
+        action='store',
+        dest='SEP',
+        default=None)
     (options, args) = parser.parse_args()
-    return options
+    
+    return options, args
 
 def main():
-    options = parse_options()
+    options, args = parse_options()
           
     ip = None
     ipname = None
-    # no args
-    if len(sys.argv) == 1:
+    if len(args) == 0:
         ip = sys.stdin
-    # only --sep sep
-    elif len(sys.argv) == 3 and options.SEP is not None:
-         ip = sys.stdin
-    # file name given
     else:
-        ipname = sys.argv[-1]
+        ipname = args[-1]
         zipped = False
         try:
             if ipname[-3:].lower() == '.gz':
@@ -59,10 +58,12 @@ def main():
         sys.stderr.write('Error: the input could not be read\n')
         sys.exit()
 
-    if options.SEP != None:
+    if options.SEP is not None:
         sep = options.SEP
         if sep == 'tab':
             sep = '\t'
+        if sep == 'space':
+            sep = ' '
     else:
         sep = None
     header = header.split(sep)
