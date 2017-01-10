@@ -6,6 +6,8 @@ import (
 	"os"
 	"bufio"
 	"regexp"
+	"compress/gzip"
+	"io"
 )
 
 
@@ -33,26 +35,51 @@ func main() {
 
 	parseArgs()
 
-	// check if the input is to be read from the stdin or from a file
-	ipStream := os.Stdin
+	var filePtr *os.File
+	var err error
+	var ioReader io.Reader
+	var byteBuffer []byte
+
+	// check if the input is to be read from from a file
+	ioReader = os.Stdin
 	if IPNAME != "" {
-		file, err := os.Open(IPNAME)
-		ipStream = file
+		filePtr, err = os.Open(IPNAME)
+		ioReader = filePtr
 		if err != nil {
 			fmt.Println("Error: the input could not be read.")
 			os.Exit(-1)
 		}
+		// check if the input is gzipped
+		// see http://www.ietf.org/rfc/rfc1952.txt
+		byteBuffer = make([]byte, 2)
+		nRead, err := io.ReadAtLeast(ioReader, byteBuffer, 2)
+		filePtr.Close()
+		if err != nil || nRead < 2 {
+			fmt.Println(err)
+			fmt.Println("Error: the input could not be read.")
+			os.Exit(-1)
+		}
+		filePtr, err = os.Open(IPNAME)
+		ioReader = filePtr
+		if byteBuffer[0] == 31 && byteBuffer[1] == 139 {
+			reader, err := gzip.NewReader(filePtr)
+			if err != nil {
+				fmt.Println("Error: the input could not be read.")
+				os.Exit(-1)
+			}
+			ioReader = reader
+		}
 	}
 	
 	// read at most 100 first lines into a slice of strings
-	scanner := bufio.NewScanner(ipStream)
+	scanner := bufio.NewScanner(ioReader)
 	lines := make([]string, 100)
 	lineCounter := 0
 	for ; lineCounter < len(lines) && scanner.Scan(); lineCounter++ {
 		lines[lineCounter] = scanner.Text()
 	}
 	if IPNAME != "" {
-		ipStream.Close()
+		filePtr.Close()
 	}
 	lines = lines[0:lineCounter]
 	
